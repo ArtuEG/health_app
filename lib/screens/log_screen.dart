@@ -140,42 +140,92 @@ class _LogScreenState extends ConsumerState<LogScreen>
   Widget _filterBar() {
     final fmt = DateFormat('yyyy-MM-dd');
     final r = _rangeFor(_range, _customRange);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    final rangeLabel = switch (_range) {
+      QuickRange.today => 'Hoy',
+      QuickRange.week => 'Últimos 7 días',
+      QuickRange.month => 'Últimos 30 días',
+      QuickRange.custom => 'Rango personalizado',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 6,
+          Row(
             children: [
-              ChoiceChip(
-                label: const Text('Hoy'),
-                selected: _range == QuickRange.today,
-                onSelected: (_) => setState(() => _range = QuickRange.today),
+              Icon(
+                Icons.date_range,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
               ),
-              ChoiceChip(
-                label: const Text('Semana'),
-                selected: _range == QuickRange.week,
-                onSelected: (_) => setState(() => _range = QuickRange.week),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rangeLabel,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${fmt.format(r.from)} - ${fmt.format(r.to)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade700,
+                          ),
+                    ),
+                  ],
+                ),
               ),
-              ChoiceChip(
-                label: const Text('Mes'),
-                selected: _range == QuickRange.month,
-                onSelected: (_) => setState(() => _range = QuickRange.month),
-              ),
-              ChoiceChip(
-                label: const Text('Personalizado'),
-                selected: _range == QuickRange.custom,
-                onSelected: (_) => _pickCustom(),
+              IconButton.filledTonal(
+                tooltip: 'Elegir rango',
+                onPressed: _pickCustom,
+                icon: const Icon(Icons.calendar_month),
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${fmt.format(r.from)} → ${fmt.format(r.to)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+          const SizedBox(height: 10),
+          SegmentedButton<QuickRange>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: QuickRange.today,
+                icon: Icon(Icons.today),
+                label: Text('Hoy'),
+              ),
+              ButtonSegment(
+                value: QuickRange.week,
+                icon: Icon(Icons.view_week),
+                label: Text('7 días'),
+              ),
+              ButtonSegment(
+                value: QuickRange.month,
+                icon: Icon(Icons.calendar_view_month),
+                label: Text('30 días'),
+              ),
+              ButtonSegment(
+                value: QuickRange.custom,
+                icon: Icon(Icons.tune),
+                label: Text('Otro'),
+              ),
+            ],
+            selected: {_range},
+            onSelectionChanged: (values) {
+              final next = values.first;
+              if (next == QuickRange.custom) {
+                _pickCustom();
+                return;
+              }
+              setState(() => _range = next);
+            },
           ),
         ],
       ),
@@ -193,6 +243,7 @@ class _BPTab extends ConsumerStatefulWidget {
 
 class _BPTabState extends ConsumerState<_BPTab> {
   late Future<List<BPSession>> _future;
+  bool _showArms = false;
 
   @override
   void initState() {
@@ -233,43 +284,36 @@ class _BPTabState extends ConsumerState<_BPTab> {
           return const Center(child: CircularProgressIndicator());
         }
         final rows = snap.data!;
-        final asc = rows.reversed.toList();
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            TrendChart(
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.stacked_line_chart),
+                    label: Text('Promedio'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.compare_arrows),
+                    label: Text('Brazos'),
+                  ),
+                ],
+                selected: {_showArms},
+                onSelectionChanged: (values) {
+                  setState(() => _showArms = values.first);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            BloodPressureTrendChart(
               from: widget.range.from,
               to: widget.range.to,
-              series: [
-                TrendSeries(
-                  label: 'Sys derecho',
-                  color: Colors.red.shade700,
-                  points: asc
-                      .map((s) => TrendPoint(s.dateTime, s.rightArm.sys.toDouble()))
-                      .toList(),
-                ),
-                TrendSeries(
-                  label: 'Sys izquierdo',
-                  color: Colors.red.shade300,
-                  points: asc
-                      .map((s) => TrendPoint(s.dateTime, s.leftArm.sys.toDouble()))
-                      .toList(),
-                ),
-                TrendSeries(
-                  label: 'Dia derecho',
-                  color: Colors.blue.shade700,
-                  points: asc
-                      .map((s) => TrendPoint(s.dateTime, s.rightArm.dia.toDouble()))
-                      .toList(),
-                ),
-                TrendSeries(
-                  label: 'Dia izquierdo',
-                  color: Colors.blue.shade300,
-                  points: asc
-                      .map((s) => TrendPoint(s.dateTime, s.leftArm.dia.toDouble()))
-                      .toList(),
-                ),
-              ],
+              rows: rows,
+              showArms: _showArms,
             ),
             const Divider(),
             if (rows.isEmpty)
@@ -390,22 +434,13 @@ class _GlucoseTabState extends ConsumerState<_GlucoseTab> {
           return const Center(child: CircularProgressIndicator());
         }
         final rows = snap.data!;
-        final asc = rows.reversed.toList();
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            TrendChart(
+            GlucoseTrendChart(
               from: widget.range.from,
               to: widget.range.to,
-              series: [
-                TrendSeries(
-                  label: 'Glucosa (mg/dL)',
-                  color: Colors.green.shade700,
-                  points: asc
-                      .map((g) => TrendPoint(g.dateTime, g.mgPerDl.toDouble()))
-                      .toList(),
-                ),
-              ],
+              rows: rows,
             ),
             const Divider(),
             if (rows.isEmpty)

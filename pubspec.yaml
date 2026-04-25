@@ -1,0 +1,46 @@
+name: health_app
+description: "health_app project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local database
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+
+  # Notifications and background tasks
+  flutter_local_notifications: ^19.5.0
+  android_alarm_manager_plus: ^5.0.0
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.1
+
+  # PDF generation and printing
+  pdf: ^3.11.3
+  printing: ^5.14.2
+
+  # Charts
+  fl_chart: ^1.1.1
+
+  # State management and utilities
+  flutter_riverpod: ^2.6.1
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  path_provider: ^2.0.15
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  isar_generator: ^3.1.0+1
+  build_runner: 2.4.13
+  analyzer: ^5.13.0
+
+flutter:
+  uses-material-design: true

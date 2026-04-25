@@ -28,8 +28,9 @@ class IsarDataService {
   }
 
   Isar get isar {
-    if (_isar == null)
+    if (_isar == null) {
       throw StateError('Isar not initialized. Call init() first.');
+    }
     return _isar!;
   }
 }

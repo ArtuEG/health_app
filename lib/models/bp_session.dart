@@ -8,10 +8,8 @@ class BPSession {
 
   late DateTime dateTime;
 
-  @Embedded()
   late ArmReading rightArm;
 
-  @Embedded()
   late ArmReading leftArm;
 
   String? note;

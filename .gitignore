@@ -1,6 +1,8 @@
 # Miscellaneous
 *.class
 *.log
+*.tmp
+*.temp
 *.pyc
 *.swp
 .DS_Store
@@ -18,6 +20,9 @@ migrate_working_dir/
 *.iws
 .idea/
 
+# Local editor settings
+.fleet/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -27,12 +32,16 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
+.plugin_symlinks/
 .pub-cache/
 .pub/
 /build/
 **/build/
 /coverage/
+coverage/
 
 # Symbolication related
 app.*.symbols
@@ -40,7 +49,38 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Release artifacts
+*.aab
+*.apk
+*.app
+*.ipa
+*.symbols.zip
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android local/generated files
+android/.gradle/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/**/*.keystore
+android/**/*.jks
+
+# Apple platform generated files
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+ios/Runner/GeneratedPluginRegistrant.*
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# Desktop generated files
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/

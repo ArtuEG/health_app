@@ -3,6 +3,13 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    configurations.all {
+        resolutionStrategy.force(
+            "androidx.core:core:1.6.0",
+            "androidx.core:core-ktx:1.6.0",
+        )
+    }
 }
 
 val newBuildDir: Directory =
@@ -22,6 +29,7 @@ subprojects {
 subprojects {
     plugins.withId("com.android.library") {
         extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+            compileSdk = 36
             if (namespace.isNullOrBlank()) {
                 namespace = group.toString()
             }

@@ -27,13 +27,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showAbout() {
-    showAboutDialog(
+    showDialog<void>(
       context: context,
-      applicationName: 'Health Tracker',
-      applicationVersion: '0.1.0',
-      applicationLegalese:
-          'App local de seguimiento de presión arterial y glucosa.\n'
-          'Tus datos se almacenan únicamente en este dispositivo.',
+      builder: (context) => AlertDialog(
+        icon: Image.asset(
+          'assets/images/app_logo.png',
+          width: 88,
+          height: 88,
+        ),
+        title: const Text('Health Tracker'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'App local de seguimiento de presión arterial y glucosa. '
+              'Tus datos se almacenan únicamente en este dispositivo.',
+            ),
+            SizedBox(height: 16),
+            Text('Creada por Arturo Elizalde.'),
+            SizedBox(height: 12),
+            Text(
+              'GitHub',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SelectableText('https://github.com/ArtuEG'),
+            SizedBox(height: 12),
+            Text(
+              'Contacto',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SelectableText('artudev365@gmail.com'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
     );
   }
 

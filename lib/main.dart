@@ -5,8 +5,10 @@ import 'package:health_app/repositories/isar/isar_bp_repository.dart';
 import 'package:health_app/repositories/isar/isar_glucose_repository.dart';
 import 'package:health_app/repositories/isar/isar_reminder_repository.dart';
 import 'package:health_app/repositories/isar/isar_user_repository.dart';
+import 'package:health_app/screens/log_screen.dart';
 import 'package:health_app/screens/record_bp_screen.dart';
 import 'package:health_app/screens/record_glucose_screen.dart';
+import 'package:health_app/screens/report_preview_screen.dart';
 import 'package:health_app/services/notification_service.dart';
 
 final bpRepositoryProvider = Provider<IsarBPRepository>(
@@ -87,6 +89,26 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 icon: const Icon(Icons.bloodtype),
                 label: const Text('Registrar glucosa'),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LogScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.history),
+                label: const Text('Ver bitácora y gráficas'),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReportPreviewScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Generar reporte PDF'),
               ),
               const Spacer(),
               const Divider(),

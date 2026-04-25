@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:health_app/config/dev_options.dart';
 import 'package:health_app/main.dart';
 import 'package:health_app/models/user_profile.dart';
 import 'package:health_app/screens/profile_edit_screen.dart';
+import 'package:health_app/services/mock_data_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -12,6 +14,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _seedingMockData = false;
+
   Future<UserProfile?> _load() async {
     final list = await ref.read(userRepositoryProvider).getAll(limit: 1);
     return list.isEmpty ? null : list.first;
@@ -70,6 +74,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _seedMockData() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar datos mock'),
+        content: const Text(
+          'Se agregarán registros de presión y glucosa de los últimos '
+          '10 meses a la base local.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Generar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _seedingMockData = true);
+    try {
+      final service = MockDataService(
+        bpRepo: ref.read(bpRepositoryProvider),
+        glucoseRepo: ref.read(glucoseRepositoryProvider),
+        userRepo: ref.read(userRepositoryProvider),
+      );
+      final result = await service.seedLastTenMonths();
+
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Datos mock listos: ${result.bpCount} presión, '
+            '${result.glucoseCount} glucosa'
+            '${result.profileCreated ? ', perfil demo' : ''}.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _seedingMockData = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,9 +165,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: _showAbout,
                   ),
                 ),
+                if (kShowMockDataButton) ...[
+                  const SizedBox(height: 16),
+                  _MockDataCard(
+                    busy: _seedingMockData,
+                    onPressed: _seedMockData,
+                  ),
+                ],
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _MockDataCard extends StatelessWidget {
+  const _MockDataCard({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.science_outlined),
+        title: const Text('Datos mock'),
+        subtitle: const Text('Llena la base local con 10 meses de pruebas.'),
+        trailing: FilledButton.icon(
+          onPressed: busy ? null : onPressed,
+          icon: busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_fix_high),
+          label: const Text('Generar'),
         ),
       ),
     );

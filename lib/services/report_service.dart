@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:health_app/models/bp_session.dart';
 import 'package:health_app/models/glucose_measurement.dart';
 import 'package:health_app/models/user_profile.dart';
@@ -9,6 +10,9 @@ import 'package:health_app/repositories/iuser_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
+const _maxBpTableRows = 45;
+const _maxGlucoseTableRows = 60;
 
 class ReportData {
   final UserProfile? profile;
@@ -60,7 +64,17 @@ class ReportService {
     required DateTime to,
   }) async {
     final data = await loadData(from: from, to: to);
-    final doc = pw.Document();
+    final font = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'),
+    );
+    final boldFont = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'),
+    );
+    final logoBytes = await rootBundle.load('assets/images/app_logo.png');
+    final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    final doc = pw.Document(
+      theme: pw.ThemeData.withFont(base: font, bold: boldFont),
+    );
     final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
     final dayFmt = DateFormat('yyyy-MM-dd');
 
@@ -68,12 +82,13 @@ class ReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(28),
+        maxPages: 40,
         build: (ctx) => [
-          _header(data, dayFmt),
+          _header(data, dayFmt, logo),
           pw.SizedBox(height: 14),
-          _bpSection(data, dateFmt),
+          ..._bpSection(data, dateFmt),
           pw.SizedBox(height: 18),
-          _glucoseSection(data, dateFmt),
+          ..._glucoseSection(data, dateFmt),
         ],
       ),
     );
@@ -81,7 +96,7 @@ class ReportService {
     return doc.save();
   }
 
-  pw.Widget _header(ReportData d, DateFormat dayFmt) {
+  pw.Widget _header(ReportData d, DateFormat dayFmt, pw.ImageProvider logo) {
     final p = d.profile;
     final genAt = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
     return pw.Container(
@@ -93,16 +108,40 @@ class ReportService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            'Reporte de salud',
-            style: pw.TextStyle(
-              fontSize: 18,
-              fontWeight: pw.FontWeight.bold,
-            ),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Image(logo, width: 42, height: 42),
+              pw.SizedBox(width: 10),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Health Tracker',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    'Reporte de salud',
+                    style: const pw.TextStyle(
+                      fontSize: 11,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 10),
+          pw.Container(
+            height: 0.6,
+            color: PdfColors.grey400,
+          ),
+          pw.SizedBox(height: 8),
           pw.Text(
-            'Periodo: ${dayFmt.format(d.from)} → ${dayFmt.format(d.to)}',
+            'Periodo: ${dayFmt.format(d.from)} a ${dayFmt.format(d.to)}',
           ),
           pw.Text('Generado: $genAt'),
           pw.Divider(height: 14),
@@ -146,21 +185,17 @@ class ReportService {
     style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
   );
 
-  pw.Widget _bpSection(ReportData d, DateFormat dateFmt) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('Presión arterial (${d.bpSessions.length} registros)'),
-        pw.SizedBox(height: 8),
+  List<pw.Widget> _bpSection(ReportData d, DateFormat dateFmt) {
+    return [
+      _sectionTitle('Presión arterial (${d.bpSessions.length} registros)'),
+      pw.SizedBox(height: 8),
         if (d.bpSessions.isEmpty)
           pw.Text('Sin registros en el periodo.')
         else ...[
-          _bpChart(d.bpSessions),
-          pw.SizedBox(height: 10),
-          _bpTable(d.bpSessions, dateFmt),
+          _tableLimitNote(d.bpSessions.length, _maxBpTableRows),
+          _bpTable(_recentRows(d.bpSessions, _maxBpTableRows), dateFmt),
         ],
-      ],
-    );
+    ];
   }
 
   pw.Widget _bpTable(List<BPSession> rows, DateFormat fmt) {
@@ -208,86 +243,17 @@ class ReportService {
     );
   }
 
-  pw.Widget _bpChart(List<BPSession> rows) {
-    final firstTs = rows.first.dateTime.millisecondsSinceEpoch.toDouble();
-    final rightSys = <pw.PointChartValue>[];
-    final leftSys = <pw.PointChartValue>[];
-    final rightDia = <pw.PointChartValue>[];
-    final leftDia = <pw.PointChartValue>[];
-
-    for (final s in rows) {
-      final x =
-          (s.dateTime.millisecondsSinceEpoch - firstTs) /
-          (1000 * 60 * 60); // hours since first
-      rightSys.add(pw.PointChartValue(x, s.rightArm.sys.toDouble()));
-      leftSys.add(pw.PointChartValue(x, s.leftArm.sys.toDouble()));
-      rightDia.add(pw.PointChartValue(x, s.rightArm.dia.toDouble()));
-      leftDia.add(pw.PointChartValue(x, s.leftArm.dia.toDouble()));
-    }
-
-    return pw.SizedBox(
-      height: 180,
-      child: pw.Chart(
-        grid: pw.CartesianGrid(
-          xAxis: pw.FixedAxis.fromStrings(
-            const ['inicio', 'fin'],
-            marginStart: 20,
-            marginEnd: 20,
-          ),
-          yAxis: pw.FixedAxis(
-            const [40, 80, 120, 160, 200],
-            divisions: true,
-          ),
-        ),
-        datasets: [
-          pw.LineDataSet(
-            legend: 'Sys derecho',
-            color: PdfColors.red700,
-            data: rightSys,
-            pointSize: 2,
-            lineWidth: 1.2,
-          ),
-          pw.LineDataSet(
-            legend: 'Sys izquierdo',
-            color: PdfColors.red300,
-            data: leftSys,
-            pointSize: 2,
-            lineWidth: 1.2,
-          ),
-          pw.LineDataSet(
-            legend: 'Dia derecho',
-            color: PdfColors.blue700,
-            data: rightDia,
-            pointSize: 2,
-            lineWidth: 1.2,
-          ),
-          pw.LineDataSet(
-            legend: 'Dia izquierdo',
-            color: PdfColors.blue300,
-            data: leftDia,
-            pointSize: 2,
-            lineWidth: 1.2,
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _glucoseSection(ReportData d, DateFormat dateFmt) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('Glucosa (${d.glucose.length} registros)'),
-        pw.SizedBox(height: 8),
+  List<pw.Widget> _glucoseSection(ReportData d, DateFormat dateFmt) {
+    return [
+      _sectionTitle('Glucosa (${d.glucose.length} registros)'),
+      pw.SizedBox(height: 8),
         if (d.glucose.isEmpty)
           pw.Text('Sin registros en el periodo.')
         else ...[
-          _glucoseChart(d.glucose),
-          pw.SizedBox(height: 10),
-          _glucoseTable(d.glucose, dateFmt),
+          _tableLimitNote(d.glucose.length, _maxGlucoseTableRows),
+          _glucoseTable(_recentRows(d.glucose, _maxGlucoseTableRows), dateFmt),
         ],
-      ],
-    );
+    ];
   }
 
   pw.Widget _glucoseTable(List<GlucoseMeasurement> rows, DateFormat fmt) {
@@ -324,37 +290,19 @@ class ReportService {
     );
   }
 
-  pw.Widget _glucoseChart(List<GlucoseMeasurement> rows) {
-    final firstTs = rows.first.dateTime.millisecondsSinceEpoch.toDouble();
-    final points = <pw.PointChartValue>[];
-    for (final g in rows) {
-      final x =
-          (g.dateTime.millisecondsSinceEpoch - firstTs) / (1000 * 60 * 60);
-      points.add(pw.PointChartValue(x, g.mgPerDl.toDouble()));
-    }
-    return pw.SizedBox(
-      height: 160,
-      child: pw.Chart(
-        grid: pw.CartesianGrid(
-          xAxis: pw.FixedAxis.fromStrings(
-            const ['inicio', 'fin'],
-            marginStart: 20,
-            marginEnd: 20,
-          ),
-          yAxis: pw.FixedAxis(
-            const [40, 80, 120, 160, 200, 250, 300],
-            divisions: true,
-          ),
-        ),
-        datasets: [
-          pw.LineDataSet(
-            legend: 'Glucosa (mg/dL)',
-            color: PdfColors.green700,
-            data: points,
-            pointSize: 2.5,
-            lineWidth: 1.4,
-          ),
-        ],
+  List<T> _recentRows<T>(List<T> rows, int limit) {
+    if (rows.length <= limit) return rows;
+    return rows.sublist(rows.length - limit);
+  }
+
+  pw.Widget _tableLimitNote(int total, int limit) {
+    if (total <= limit) return pw.SizedBox();
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Text(
+        'Tabla limitada a los $limit registros mas recientes de $total. '
+        'Usa la bitacora de la app para ver graficas.',
+        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
       ),
     );
   }
